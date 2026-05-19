@@ -1,0 +1,1151 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Admin Hub - SmartQuiz</title>
+  <link rel="stylesheet" href="style.css">
+  <script src="/socket.io/socket.io.js"></script>
+</head>
+<body>
+  <!-- Floating blobs -->
+  <div class="blob blob1"></div>
+  <div class="blob blob2"></div>
+  <div class="blob blob3"></div>
+  
+  <!-- Falling Elements Container -->
+  <div id="fallingContainer" style="position:fixed; top:0; left:0; width:100vw; height:100vh; pointer-events:none; overflow:hidden; z-index:1;"></div>
+
+  <div class="app-container">
+
+  <div class="dashboard-container">
+    <div class="nav-bar" style="margin-bottom: 20px;">
+      <button class="mobile-menu-btn" onclick="document.getElementById('sidebarNav').classList.toggle('active')">☰</button>
+      <h2 style="margin:0;">
+        <span id="profAvatar" style="font-size:30px; display:inline-block; vertical-align:middle; margin-right:10px;">👑</span>
+        <span id="profNameHeader"></span> | Admin Hub 
+      </h2>
+      <div style="display:flex; gap:10px;">
+        <button class="btn btn-secondary" style="width: auto; padding: 10px 20px;" onclick="logout()">Logout</button>
+      </div>
+    </div>
+    
+    <!-- Global Room Lobby (Visible after a room is opened) -->
+    <div id="globalRoomLobby" class="animated-card hidden" style="text-align: center; margin-bottom: 20px; border: 2px solid var(--primary);">
+        <h2 style="color:var(--primary); margin-bottom:5px;">🚀 Room is Live!</h2>
+        <h1 style="font-size: 50px; letter-spacing: 5px; margin-bottom: 5px;" id="globalRCode">---</h1>
+        <p>Tell your students to join using this code!</p>
+        
+        <div style="margin: 20px 0; border-top:1px solid rgba(0,0,0,0.1); padding-top:15px;">
+           <p style="font-size:18px; font-weight:bold;">Players Joined: <span id="pCount" style="color:var(--primary); font-size:22px;">0</span></p>
+           <div id="playersGrid" class="players-grid" style="margin-bottom: 20px;"></div>
+           <div style="display:flex; gap:10px;">
+              <button class="btn btn-yellow" style="font-size:18px; padding:15px; flex:2;" onclick="startGame()">▶ START GAME NOW</button>
+              <button class="btn btn-secondary" style="font-size:18px; padding:15px; flex:1;" onclick="cancelRoom()">⬅ BACK</button>
+           </div>
+        </div>
+    </div>
+
+    <!-- Live Quiz Monitor (Admin View) -->
+    <div id="liveQuizView" class="animated-card hidden" style="text-align: center; margin-bottom: 20px; border: 2px solid var(--secondary);">
+        <h2 style="color:var(--secondary);">🎮 Live Quiz in Progress</h2>
+        <div style="background: rgba(255,255,255,0.4); padding: 15px; border-radius: 15px; margin-bottom: 15px;">
+            <p id="liveAdminQ" style="font-size: 20px; font-weight: bold; margin-bottom: 10px;">Loading Question...</p>
+            
+            <!-- Versus Board for Battle Mode -->
+            <div id="versusBoard" class="hidden" style="display: flex; justify-content: space-around; align-items: center; margin-bottom: 20px; background: rgba(0,0,0,0.05); padding: 15px; border-radius: 15px;">
+                <div style="text-align: center;">
+                    <h3 style="margin:0; color:#2193b0;">Alpha</h3>
+                    <h1 style="margin:0;" id="scoreAlpha">0</h1>
+                </div>
+                <div style="font-size: 30px; font-weight: bold; opacity: 0.5;">VS</div>
+                <div style="text-align: center;">
+                    <h3 style="margin:0; color:#ff758c;">Omega</h3>
+                    <h1 style="margin:0;" id="scoreOmega">0</h1>
+                </div>
+            </div>
+
+            <div id="liveAdminLeaderboard" style="display: flex; flex-direction: column; gap: 8px;">
+               <!-- Live scores here -->
+            </div>
+        </div>
+        <p style="font-size: 13px;">Scores update live as students answer!</p>
+    </div>
+
+    <!-- Results Screen -->
+    <div id="resultScreen" class="animated-card hidden" style="text-align: center; margin-bottom: 20px; border: 2px solid var(--yellow);">
+        <h1>🎉 Game Over 🎉</h1>
+        <!-- Animated podium base -->
+        <div id="podium" style="display:flex; justify-content:center; align-items:flex-end; gap:20px; height: 180px; margin: 30px 0; border-bottom: 3px solid rgba(0,0,0,0.1); padding-bottom:10px;">
+          <!-- Ranks inserted here dynamically -->
+        </div>
+        <div id="teamResultAdmin" class="hidden" style="margin: 20px 0; padding: 15px; background: rgba(0,0,0,0.05); border-radius: 15px;">
+            <h2 id="winningTeamTextAdmin" style="margin:0; color:var(--primary);">Team Alpha Wins!</h2>
+            <p id="teamScoreBreakdownAdmin" style="font-size:14px; opacity:0.7;">1200 vs 1100</p>
+        </div>
+        
+        <button class="btn btn-yellow" style="margin-top:20px;" onclick="returnToDash()">↩ Return to Admin Hub</button>
+    </div>
+
+    <div style="display: flex; gap: 20px; align-items: flex-start;" id="mainDashLayout">
+        
+        <!-- Sidebar Navigation -->
+        <div id="sidebarNav" class="sidebar-nav" style="width: 250px; display: flex; flex-direction: column; gap: 10px; background: rgba(255,255,255,0.1); padding: 15px; border-radius: 15px; border: 1px solid rgba(255,255,255,0.2); backdrop-filter: blur(10px);">
+            <button class="btn btn-secondary nav-btn" onclick="showTab(event, 'tab-manual')" style="margin:0; text-align:left; padding:15px;">📝 Setup Quiz</button>
+            <button class="btn btn-tertiary nav-btn" onclick="showTab(event, 'tab-ai')" style="margin:0; text-align:left; padding:15px;">🤖 AI Auto-Gen</button>
+            <button class="btn btn-tertiary nav-btn" onclick="showTab(event, 'tab-host')" style="margin:0; text-align:left; padding:15px;">🎮 Host Room (Drafts)</button>
+            <button class="btn btn-tertiary nav-btn" onclick="showTab(event, 'tab-certs')" style="margin:0; text-align:left; padding:15px;">🦊 Certifications</button>
+            <button class="btn btn-tertiary nav-btn" onclick="showTab(event, 'tab-students')" style="margin:0; text-align:left; padding:15px;">👥 Students List</button>
+            <button class="btn btn-tertiary nav-btn" onclick="showTab(event, 'tab-profile')" style="margin:0; text-align:left; padding:15px;">🖼️ Profile Settings</button>
+            <button class="btn nav-btn blinking-btn" onclick="showTab(event, 'tab-future')" style="margin:0; text-align:left; padding:15px;">🚀 Future Updates</button>
+        </div>
+
+        <!-- Main Content Area -->
+        <div style="flex: 1; position: relative;">
+            
+            <!-- Create Quiz Section -->
+            <div id="tab-manual" class="animated-card tab-content">
+              <h3>📝 Setup Quiz (Manual)</h3>
+              
+              <div class="form-group" style="margin-bottom: 20px;">
+                <input type="text" id="quizTitle" placeholder="Global Quiz Title" style="font-weight:bold; font-size:18px; width:100%; padding:10px;">
+              </div>
+              
+              <div id="manualQuestionsContainer" style="max-height: 400px; overflow-y: auto; overflow-x:hidden; padding-right:10px; margin-bottom:15px; display:flex; flex-direction:column; gap:15px;">
+                 <!-- Dynamic Question Blocks inject here via JS -->
+              </div>
+              
+              <div style="display:flex; gap:10px; margin-top:10px; border-top: 1px solid rgba(0,0,0,0.1); padding-top:15px; align-items: center;">
+                 <button class="btn btn-secondary" style="margin:0; flex:1;" onclick="addManualQuestionBlock()">➕ Add Another Question</button>
+                 <select id="gameModeManual" style="padding:10px; border-radius:10px; flex:1;">
+                    <option value="multiplayer_score">Multiplayer (Score)</option>
+                    <option value="multiplayer_score_time">Multiplayer (Score + Time)</option>
+                    <option value="battle">Battle Mode (30 vs 30)</option>
+                 </select>
+                 <button class="btn btn-yellow" style="margin:0; flex:1;" onclick="hostRoomWithManual()">🚀 Host Room</button>
+              </div>
+            </div>
+
+            <!-- AI Generator Section -->
+            <div id="tab-ai" class="animated-card tab-content hidden">
+               <h3>🤖 AI Auto-Gen</h3>
+               <p style="font-size: 13px; margin-bottom: 10px;">Instantly generate questions with Google Gemini.</p>
+               <div class="form-group">
+                 <input type="text" id="aiTopic" placeholder="Topic (e.g. History)">
+               </div>
+               <div style="display: flex; gap: 10px; text-align: left; margin-bottom: 15px;">
+                  <div class="form-group" style="flex: 1; margin-bottom: 0;">
+                     <label for="aiDifficulty" style="font-size: 13px; font-weight: bold; display: block; margin-bottom: 5px;">🔥 Difficulty</label>
+                     <select id="aiDifficulty" style="width:100%; padding: 10px; border-radius: 10px;">
+                        <option value="easy">Easy</option>
+                        <option value="moderate" selected>Moderate</option>
+                        <option value="hard">Hard</option>
+                     </select>
+                  </div>
+                  <div class="form-group" style="flex: 1; margin-bottom: 0;">
+                     <label for="aiType" style="font-size: 13px; font-weight: bold; display: block; margin-bottom: 5px;">📝 Question Type</label>
+                     <select id="aiType" style="width:100%; padding: 10px; border-radius: 10px;">
+                        <option value="mcq">Multiple Choice</option>
+                        <option value="true_false">True / False</option>
+                        <option value="text">Answer Type (Text)</option>
+                     </select>
+                  </div>
+               </div>
+               <div style="display: flex; gap: 10px; text-align: left; margin-bottom: 15px;">
+                  <div class="form-group" style="flex: 1; margin-bottom: 0;">
+                    <label for="aiCount" style="font-size: 13px; font-weight: bold; display: block; margin-bottom: 5px;">🔢 Num Questions</label>
+                    <input type="number" id="aiCount" value="5" min="1" max="15" style="width:100%; padding: 10px; border-radius: 10px;">
+                  </div>
+                  <div class="form-group" style="flex: 1; margin-bottom: 0;">
+                    <label for="aiTimeLimit" style="font-size: 13px; font-weight: bold; display: block; margin-bottom: 5px;">⏱ Timer (Seconds)</label>
+                    <input type="number" id="aiTimeLimit" value="15" min="5" max="120" style="width:100%; padding: 10px; border-radius: 10px;">
+                  </div>
+               </div>
+               <button class="btn btn-secondary" onclick="generateAI()">Generate Questions</button>
+               <div id="aiActions" class="hidden" style="margin-top:15px; background: rgba(0,0,0,0.05); padding: 15px; border-radius: 15px; display:flex; flex-direction:column; gap:15px;">
+                  
+                  <div style="display:flex; align-items:center; gap:10px;">
+                      <label style="font-weight:bold; font-size:14px; min-width:80px;">Play Mode:</label>
+                      <select id="gameModeAI" style="padding:10px; border-radius:10px; flex:1; border:1px solid #ccc;">
+                         <option value="multiplayer_score">Multiplayer (Score)</option>
+                         <option value="multiplayer_score_time">Multiplayer (Score + Time)</option>
+                         <option value="battle">Battle Mode (30 vs 30)</option>
+                      </select>
+                  </div>
+
+                  <div style="display:flex; gap:10px;">
+                      <button class="btn btn-yellow" style="margin:0; flex:1;" onclick="hostRoomWithAI()">🔥 Host Room</button>
+                      <button id="draftAiBtn" class="btn btn-tertiary" style="margin:0; flex:1;" onclick="addAIToDrafts()">📝 Add to Drafts</button>
+                  </div>
+
+               </div>
+               <div id="aiResult" style="margin-top:15px; font-size:13px; max-height:200px; overflow-y:auto; padding-right:5px;"></div>
+            </div>
+
+            <!-- Manage Rooms Section -->
+            <div id="tab-host" class="animated-card tab-content hidden">
+              <h3>🎮 Host Room</h3>
+              <div class="form-group">
+                <select id="gameMode">
+                   <option value="multiplayer_score">Multiplayer (Score)</option>
+                   <option value="multiplayer_score_time">Multiplayer (Score + Time)</option>
+                   <option value="battle">Battle Mode (30 vs 30)</option>
+                </select>
+              </div>
+              <p style="font-size:13px; margin-bottom:10px;">Warning: This will manually host using whatever is in your drafts.</p>
+              <button class="btn btn-tertiary" onclick="createRoomFromDrafts()">🚀 Host Room (From Drafts)</button>
+              
+              <div id="draftList" style="margin-top:15px; font-size:13px; max-height:150px; overflow-y:auto; border-top: 1px solid rgba(0,0,0,0.1); padding-top:10px;">
+                 <i>No questions tracked inside your draft queue yet. Use AI generator to stack drafts.</i>
+              </div>
+            </div>
+            
+            <!-- Certificates Workflow -->
+            <div id="tab-certs" class="animated-card tab-content hidden">
+               <h3>🦊 Certifications</h3>
+               <p style="font-size: 13px; margin-bottom: 10px;">Review and approve certificates.</p>
+               <button class="btn" onclick="fetchCertificates()">🔄 Refresh List</button>
+               <div id="certList" style="margin-top: 15px; max-height:250px; overflow-y:auto; display:flex; flex-direction:column; gap:10px;">
+                  <p style="font-size:13px; text-align:center;">Click refresh to load pending certificates.</p>
+               </div>
+            </div>
+            
+            <!-- Students List Workflow -->
+            <div id="tab-students" class="animated-card tab-content hidden">
+               <h3>👥 Students Registered</h3>
+               <p style="font-size: 13px; margin-bottom: 10px;">Review registered students.</p>
+               <button class="btn btn-secondary" onclick="fetchStudents()">🔄 Load Students</button>
+               <div id="studentList" style="margin-top: 15px; max-height:250px; overflow-y:auto; display:flex; flex-direction:column; gap:10px;">
+                  <p style="font-size:13px; text-align:center;">Click load to view.</p>
+               </div>
+            </div>
+            
+            <div id="tab-profile" class="animated-card tab-content hidden">
+               <h3 style="text-align: center; margin-bottom: 20px;">🛡️ Admin Profile Hub</h3>
+               
+               <!-- Section: Basic Info -->
+               <div style="background: rgba(255,255,255,0.4); padding: 20px; border-radius: 15px; margin-bottom: 20px;">
+                  <h4 style="margin-top:0;">👤 Account Settings</h4>
+                  <div class="form-group">
+                    <label style="font-size: 12px; font-weight: bold; margin-bottom: 5px; display: block; text-align: left;">Email (Login ID)</label>
+                    <input type="email" id="profileEmailDisplay" readonly style="width: 100%; padding: 10px; background: rgba(0,0,0,0.05); color: #666; cursor: not-allowed; border: 1px solid rgba(0,0,0,0.1); border-radius: 10px;">
+                  </div>
+                  <div class="form-group">
+                    <input type="text" id="updateNameInput" placeholder="Update Admin Name" style="width: 100%; padding: 10px;">
+                  </div>
+                  <div class="form-group">
+                    <input type="password" id="updatePassInput" placeholder="New Password" style="width: 100%; padding: 10px;">
+                  </div>
+                  <div style="display:flex; align-items:center; gap:15px; margin-top:10px;">
+                     <div style="flex:1; text-align:center; padding: 15px; border: 2px dashed rgba(0,0,0,0.2); border-radius:15px;">
+                         <label for="dpUpload" style="cursor:pointer; padding:8px 15px; background:var(--primary); color:white; border-radius:8px; font-size:12px; font-weight:bold;">📁 Change Avatar</label>
+                         <input type="file" id="dpUpload" accept="image/*" class="hidden" onchange="uploadAvatarImage(this)">
+                     </div>
+                     <button class="btn btn-yellow" style="flex:1; margin:0;" onclick="saveAdminProfile()">Save Changes</button>
+                  </div>
+               </div>
+
+               <!-- Section: Statistics -->
+               <div style="margin-bottom:20px; display:flex; gap:10px;">
+                  <div style="flex:1; background:var(--primary); color:white; padding:15px; border-radius:15px; text-align:center;">
+                     <h1 style="margin:0;" id="statRooms">0</h1>
+                     <p style="font-size:12px; margin:0; opacity:0.8;">Rooms Hosted</p>
+                  </div>
+               </div>
+
+               <!-- Section: History -->
+               <div style="background: rgba(255,255,255,0.4); padding: 15px; border-radius: 15px; margin-bottom: 20px;">
+                  <h4 style="margin-top:0;">📜 Room History</h4>
+                  <div id="hostedHistory" style="max-height: 200px; overflow-y:auto; font-size:12px; text-align:left;">
+                     <i>No rooms hosted yet. Your history will appear here.</i>
+                  </div>
+               </div>
+
+               <!-- Section: Settings & Logout -->
+               <div style="background: rgba(0,0,0,0.05); padding: 15px; border-radius: 15px;">
+                  <h4 style="margin-top:0;">⚙️ Dashboard Settings</h4>
+                  <div style="display: flex; flex-direction: column; gap: 8px; margin-bottom: 15px;">
+                     <label style="display:flex; justify-content:space-between; align-items:center; font-size:13px; cursor:pointer;">
+                        Sound Effects (UI Only) <input type="checkbox" id="settingSound" onchange="toggleSetting('sound', this.checked)">
+                     </label>
+                     <label style="display:flex; justify-content:space-between; align-items:center; font-size:13px; cursor:pointer;">
+                        Auto-Save AI Drafts <input type="checkbox" id="settingAutoSave" onchange="toggleSetting('autoSave', this.checked)">
+                     </label>
+                  </div>
+                  <button class="btn btn-secondary" style="width:100%; background:#ff4757;" onclick="logout()">🚪 Logout Session</button>
+               </div>
+            </div>
+
+            <!-- Future Updates Card -->
+            <div id="tab-future" class="animated-card tab-content hidden">
+                <h3>🚀 Future Updates</h3>
+                <p style="font-size: 14px; margin-bottom: 20px; color: #555;">Here are some exciting features coming soon to SmartQuiz!</p>
+                <ul style="text-align: left; font-size: 13px; color: #444; line-height: 1.6; list-style-type: none; padding: 0; max-height: 400px; overflow-y: auto;">
+                    <li style="margin-bottom: 10px; padding: 12px; background: rgba(0,0,0,0.03); border-radius: 10px; border-left: 4px solid #f5576c;"><b>1. Achievement Badges:</b> Award digital badges for milestones.</li>
+                    <li style="margin-bottom: 10px; padding: 12px; background: rgba(0,0,0,0.03); border-radius: 10px; border-left: 4px solid #f093fb;"><b>2. Multimedia Questions:</b> Update the quiz creator to support uploading images, audio clips, or YouTube video links as part of a question.</li>
+                    <li style="margin-bottom: 10px; padding: 12px; background: rgba(0,0,0,0.03); border-radius: 10px; border-left: 4px solid #4facfe;"><b>3. Bulk Import/Export:</b> Allow admins to upload quizzes via CSV/Excel files to save time, and export quiz results to Excel for their physical gradebooks.</li>
+                    <li style="margin-bottom: 10px; padding: 12px; background: rgba(0,0,0,0.03); border-radius: 10px; border-left: 4px solid #00f2fe;"><b>4. Automated Payment Gateway:</b> Upgrade your current manual QR-code/UTR payment verification to a fully automated system using Razorpay, Stripe, or PayU webhooks for instant "Pro" activations.</li>
+                    <li style="margin-bottom: 10px; padding: 12px; background: rgba(0,0,0,0.03); border-radius: 10px; border-left: 4px solid #43e97b;"><b>5. AI "Explain the Answer":</b> After a student gets a question wrong, use the Gemini AI to automatically generate a friendly 2-sentence explanation of why the correct answer is right.</li>
+                    <li style="margin-bottom: 10px; padding: 12px; background: rgba(0,0,0,0.03); border-radius: 10px; border-left: 4px solid #38f9d7;"><b>6. AI PDF/Document to Quiz:</b> Allow teachers to upload a PDF chapter or syllabus, and have the AI read the document and instantly generate a 20-question quiz based on the text.</li>
+                    <li style="margin-bottom: 10px; padding: 12px; background: rgba(0,0,0,0.03); border-radius: 10px; border-left: 4px solid #fa709a;"><b>7. Multi-Language Support (i18n):</b> Add a language toggle (e.g., English, Hindi, Spanish) to the UI so students can interact with the app in their native language.</li>
+                    <li style="margin-bottom: 10px; padding: 12px; background: rgba(0,0,0,0.03); border-radius: 10px; border-left: 4px solid #fee140;"><b>8. Late Join & Reconnection:</b> Improve the socket logic so if a student's internet drops, they can instantly rejoin the room without losing their current score or team assignment.</li>
+                    <li style="margin-bottom: 10px; padding: 12px; background: rgba(0,0,0,0.03); border-radius: 10px; border-left: 4px solid #f5576c;"><b>9. Automated Payment Gateway:</b> Upgrade your current manual QR-code/UTR payment verification to a fully automated system using Razorpay, Stripe, or PayU webhooks for instant "Pro" activations.</li>
+                </ul>
+            </div>
+
+
+
+        </div>
+    </div>
+  </div>
+
+
+  
+  <!-- Custom Gamified Toast Popup -->
+  <div id="toastModal" class="glass-card hidden" style="position:fixed; top:50%; left:50%; transform:translate(-50%, -50%); z-index:1000; text-align:center; padding:30px; animation: popCenter 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards; box-shadow: 0 10px 50px rgba(0,0,0,0.5);">
+      <h1 id="toastIcon" style="font-size:40px; margin-bottom:10px;">🎉</h1>
+      <h2 id="toastTitle" style="color:var(--primary);">Success!</h2>
+      <p id="toastMessage" style="font-size:16px; font-weight:bold; margin-bottom:20px;">Message goes here</p>
+      <button class="btn btn-secondary" onclick="document.getElementById('toastModal').classList.add('hidden');">Awesome!</button>
+  </div>
+  
+  <!-- Custom Confirmation Popup -->
+  <div id="confirmModal" class="glass-card hidden" style="position:fixed; top:50%; left:50%; transform:translate(-50%, -50%); z-index:3000; text-align:center; padding:30px; animation: popCenter 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards; box-shadow: 0 10px 50px rgba(0,0,0,0.5); width: 100%; max-width: 400px; border: 2px solid #ff4757;">
+      <h1 style="font-size:40px; margin-bottom:10px;">🗑️</h1>
+      <h2 style="color:#ff4757;">Confirm Deletion</h2>
+      <p id="confirmMessage" style="font-size:16px; font-weight:bold; margin-bottom:20px;">Are you sure you want to delete this certificate? This action cannot be undone.</p>
+      <div style="display:flex; gap:10px;">
+          <button class="btn btn-secondary" style="flex:1;" onclick="document.getElementById('confirmModal').classList.add('hidden');">No, Keep It</button>
+          <button id="confirmYesBtn" class="btn" style="flex:1; background:#ff4757; color:white;">Yes, Delete</button>
+      </div>
+  </div>
+  
+  <!-- Certificate Preview Modal -->
+  <div id="certPreviewModal" class="glass-card hidden" style="position:fixed; top:50%; left:50%; transform:translate(-50%, -50%); z-index:2000; width:90%; max-width:800px; max-height:90vh; overflow:auto; padding:20px; box-shadow: 0 0 100px rgba(0,0,0,0.5); animation: popCenter 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px; border-bottom:1px solid rgba(0,0,0,0.1); padding-bottom:10px;">
+          <h3 style="margin:0; color:var(--primary);">📜 Certificate Preview</h3>
+          <button class="btn btn-secondary" style="width:auto; padding:5px 15px; margin:0;" onclick="document.getElementById('certPreviewModal').classList.add('hidden')">Close x</button>
+      </div>
+      <div id="certPreviewContent" style="background:white; border-radius:10px; overflow:hidden; transform:scale(0.8); transform-origin:top center;">
+          <!-- Injected Cert HTML -->
+      </div>
+  </div>
+
+  <!-- Room Details History Modal -->
+  <div id="roomDetailsModal" class="glass-card hidden" style="position:fixed; top:50%; left:50%; transform:translate(-50%, -50%); z-index:4000; width:90%; max-width:500px; max-height:80vh; overflow:auto; padding:20px; box-shadow: 0 0 100px rgba(0,0,0,0.5); animation: popCenter 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px; border-bottom:1px solid rgba(0,0,0,0.1); padding-bottom:10px;">
+          <h3 style="margin:0; color:var(--primary);">📜 Match Session Details</h3>
+          <button class="btn btn-secondary" style="width:auto; padding:5px 15px; margin:0;" onclick="document.getElementById('roomDetailsModal').classList.add('hidden')">Close x</button>
+      </div>
+      <div id="roomDetailsHeader" style="margin-bottom:15px;">
+          <!-- Title & Meta -->
+      </div>
+      <div id="roomDetailsResults" style="display:flex; flex-direction:column; gap:8px;">
+          <!-- Leaderboard -->
+      </div>
+  </div>
+
+  <!-- Battle Mode Team Names Modal -->
+  <div id="battleTeamModal" class="glass-card hidden" style="position:fixed; top:50%; left:50%; transform:translate(-50%, -50%); z-index:3500; text-align:center; padding:30px; animation: popCenter 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards; box-shadow: 0 10px 50px rgba(0,0,0,0.5); width: 100%; max-width: 400px; border: 2px solid var(--primary);">
+      <h1 style="font-size:40px; margin-bottom:10px;">⚔️</h1>
+      <h2 style="color:var(--primary);">Battle Mode Teams</h2>
+      <p style="font-size:14px; margin-bottom:20px;">Enter custom names for the two competing teams.</p>
+      <div class="form-group">
+          <input type="text" id="team1NameInput" placeholder="Team 1 (Default: Alpha)" value="Alpha">
+      </div>
+      <div class="form-group">
+          <input type="text" id="team2NameInput" placeholder="Team 2 (Default: Omega)" value="Omega">
+      </div>
+      <div style="display:flex; gap:10px; margin-top:20px;">
+          <button class="btn btn-secondary" style="flex:1;" onclick="document.getElementById('battleTeamModal').classList.add('hidden');">Cancel</button>
+          <button class="btn btn-yellow" style="flex:1;" onclick="submitBattleTeams()">Launch Room</button>
+      </div>
+  </div>
+
+  <script>
+    const socket = io();
+    const urlParams = new URLSearchParams(window.location.search);
+    
+    // Auth Check
+    const user = JSON.parse(sessionStorage.getItem('user'));
+    if(!user || user.role !== 'admin') window.location.href = 'index.html';
+    
+    // Set Admin Name in Header
+    if(user && user.name) {
+        document.getElementById('profNameHeader').innerText = user.name;
+    }
+    
+    // Set Email in Profile Settings
+    if(user && user.email) {
+        document.getElementById('profileEmailDisplay').value = user.email;
+    }
+    
+
+
+    // Log session resume for developer audit
+    fetch('/api/auth/checkin', {
+        method: 'POST', headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ user })
+    }).catch(e => console.log("Audit log failed", e));
+    
+    let currentRoom = null;
+    let tempAiQuestions = [];
+    let draftQuestions = []; // re-attached purely for AI Generation Queue workflow
+    let manualBlockCounter = 0;
+    let cachedCerts = []; // Local cache for viewing
+    let pendingRoomConfig = null;
+
+    function openBattleTeamModal(config) {
+        pendingRoomConfig = config;
+        document.getElementById('battleTeamModal').classList.remove('hidden');
+    }
+
+    function submitBattleTeams() {
+        if (!pendingRoomConfig) return;
+        const t1 = document.getElementById('team1NameInput').value || 'Alpha';
+        const t2 = document.getElementById('team2NameInput').value || 'Omega';
+        pendingRoomConfig.teamNames = [t1, t2];
+        socket.emit('createRoom', pendingRoomConfig);
+        document.getElementById('battleTeamModal').classList.add('hidden');
+        pendingRoomConfig = null;
+    }
+    
+    if(urlParams.get('mode') === 'playFast') {
+        setTimeout(() => {
+            const aiBtn = document.querySelectorAll('.nav-btn')[1];
+            if(aiBtn) aiBtn.click();
+            document.getElementById('aiTopic').focus();
+            document.getElementById('aiTopic').placeholder = "PlayFast Mode! Enter topic here...";
+            // Automatically select 'Battle' mode for Play Fast 
+            document.getElementById('gameMode').value = "battle";
+        }, 500);
+    }
+
+    function showTab(e, tabId) {
+        document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
+        document.querySelectorAll('.nav-btn').forEach(btn => {
+            btn.classList.remove('btn-secondary');
+            btn.classList.add('btn-tertiary');
+        });
+        document.getElementById(tabId).classList.remove('hidden');
+        if(e) {
+            e.currentTarget.classList.remove('btn-tertiary');
+            e.currentTarget.classList.add('btn-secondary');
+        }
+        const sidebar = document.getElementById('sidebarNav');
+        if(sidebar) sidebar.classList.remove('active');
+    }
+
+    function logout() {
+      sessionStorage.clear();
+      window.location.href = 'index.html';
+    }
+    
+    let audioCtx;
+    function playSound(type) {
+        const settings = JSON.parse(localStorage.getItem('adminSettings') || '{"sound":false, "autoSave":false}');
+        if (!settings.sound) return;
+        try {
+            if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            if (audioCtx.state === 'suspended') audioCtx.resume();
+            const osc = audioCtx.createOscillator();
+            const gainNode = audioCtx.createGain();
+            osc.connect(gainNode);
+            gainNode.connect(audioCtx.destination);
+            if (type === 'success') {
+                osc.type = 'sine'; osc.frequency.setValueAtTime(400, audioCtx.currentTime); osc.frequency.exponentialRampToValueAtTime(600, audioCtx.currentTime + 0.1); gainNode.gain.setValueAtTime(0.1, audioCtx.currentTime); gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.1); osc.start(); osc.stop(audioCtx.currentTime + 0.1);
+            } else if (type === 'error') {
+                osc.type = 'sawtooth'; osc.frequency.setValueAtTime(300, audioCtx.currentTime); osc.frequency.exponentialRampToValueAtTime(150, audioCtx.currentTime + 0.2); gainNode.gain.setValueAtTime(0.1, audioCtx.currentTime); gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.2); osc.start(); osc.stop(audioCtx.currentTime + 0.2);
+            } else {
+                osc.type = 'square'; osc.frequency.setValueAtTime(300, audioCtx.currentTime); gainNode.gain.setValueAtTime(0.05, audioCtx.currentTime); gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.05); osc.start(); osc.stop(audioCtx.currentTime + 0.05);
+            }
+        } catch(e) { console.log(e); }
+    }
+
+    function initSettings() {
+        const settings = JSON.parse(localStorage.getItem('adminSettings') || '{"sound":false, "autoSave":false}');
+        const soundEl = document.getElementById('settingSound');
+        const autoSaveEl = document.getElementById('settingAutoSave');
+        if(soundEl) soundEl.checked = settings.sound;
+        if(autoSaveEl) autoSaveEl.checked = settings.autoSave;
+    }
+    
+    function toggleSetting(key, val) {
+        const settings = JSON.parse(localStorage.getItem('adminSettings') || '{"sound":false, "autoSave":false}');
+        settings[key] = val;
+        localStorage.setItem('adminSettings', JSON.stringify(settings));
+        if (key === 'sound' && val) playSound('success');
+    }
+
+    function showToast(title, message, icon="🎉", autoHideMs=0) {
+        if (['❌', '⚠️', '🚫', '😅', '🚧', '🤖'].includes(icon)) playSound('error');
+        else playSound('success');
+
+        document.getElementById('toastIcon').innerText = icon;
+        document.getElementById('toastTitle').innerText = title;
+        document.getElementById('toastMessage').innerText = message;
+
+        const btn = document.querySelector('#toastModal button');
+        const lowerTitle = title.toLowerCase();
+        if (['❌', '⚠️', '🚫', '😅', '🚧', '🤖'].includes(icon) || lowerTitle.includes('error') || lowerTitle.includes('invalid') || lowerTitle.includes('wrong') || lowerTitle.includes('empty') || lowerTitle.includes('missing') || lowerTitle.includes('oops')) {
+            btn.innerText = "OK";
+        } else {
+            btn.innerText = "Awesome!";
+        }
+
+        document.getElementById('toastModal').classList.remove('hidden');
+        if(autoHideMs > 0) {
+            setTimeout(() => { document.getElementById('toastModal').classList.add('hidden'); }, autoHideMs);
+        }
+    }
+
+    function updateDynamicQType(blockId) {
+      const block = document.getElementById(blockId);
+      const type = block.querySelector('[name="qType"]').value;
+      const opts = block.querySelector('.optionsContainer');
+      const ansWrp = block.querySelector('.ansWrapper');
+      
+      if(type === 'mcq') {
+        opts.innerHTML = `
+          <input type="text" name="optA" placeholder="Option A" class="form-group" style="width:100%; padding:10px; margin-bottom:5px;">
+          <input type="text" name="optB" placeholder="Option B" class="form-group" style="width:100%; padding:10px; margin-bottom:5px;">
+          <input type="text" name="optC" placeholder="Option C" class="form-group" style="width:100%; padding:10px; margin-bottom:5px;">
+          <input type="text" name="optD" placeholder="Option D" class="form-group" style="width:100%; padding:10px; margin-bottom:5px;">
+        `;
+        ansWrp.innerHTML = `
+            <label style="font-weight:bold; font-size:13px;">✅ Select Correct Answer:</label>
+            <select name="qAnswerSelect" style="width:100%; padding:10px; border-radius:10px; border:1px solid #ccc;">
+               <option value="A">Option A</option>
+               <option value="B">Option B</option>
+               <option value="C">Option C</option>
+               <option value="D">Option D</option>
+            </select>
+        `;
+      } else if (type === 'true_false') {
+        opts.innerHTML = `
+          <input type="text" name="optA" value="True" readonly class="form-group" style="width:100%; padding:10px; margin-bottom:5px;">
+          <input type="text" name="optB" value="False" readonly class="form-group" style="width:100%; padding:10px; margin-bottom:5px;">
+        `;
+        ansWrp.innerHTML = `
+            <label style="font-weight:bold; font-size:13px;">✅ Select Correct Answer:</label>
+            <select name="qAnswerSelect" style="width:100%; padding:10px; border-radius:10px; border:1px solid #ccc;">
+               <option value="True">True</option>
+               <option value="False">False</option>
+            </select>
+        `;
+      } else {
+        opts.innerHTML = `<p style="font-size:12px; margin-bottom:10px;">Students will type the answer visually.</p>`;
+        ansWrp.innerHTML = `
+          <label style="font-weight:bold; font-size:13px;">✅ Type Correct Answer EXACTLY:</label>
+          <input type="text" name="qAnswerInput" placeholder="Type correct answer" class="form-group" style="width:100%; padding:10px; box-sizing:border-box;">
+        `;
+      }
+    }
+    
+    function addManualQuestionBlock() {
+        manualBlockCounter++;
+        const blockId = 'qBlock_' + manualBlockCounter;
+        
+        const div = document.createElement('div');
+        div.className = "question-block";
+        div.id = blockId;
+        div.style.background = "rgba(255, 255, 255, 0.5)";
+        div.style.padding = "15px";
+        div.style.borderRadius = "12px";
+        div.style.border = "1px solid rgba(0,0,0,0.1)";
+        
+        div.innerHTML = `
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+                <h4 style="margin:0;">Question ${manualBlockCounter}</h4>
+                ${manualBlockCounter > 1 ? `<button class="btn btn-tertiary" style="padding:5px 10px; width:auto; font-size:12px;" onclick="document.getElementById('${blockId}').remove()">🗑️ Remove</button>` : ''}
+            </div>
+            <div class="form-group" style="margin-top:10px;">
+              <input type="text" name="qText" placeholder="Question Text (e.g. What is 2+2?)" style="width:100%; padding:10px;">
+            </div>
+            <div class="form-group">
+              <select name="qType" onchange="updateDynamicQType('${blockId}')" style="width:100%; padding:10px; border-radius:10px; border:1px solid #ccc;">
+                <option value="mcq">Multiple Choice</option>
+                <option value="true_false">True / False</option>
+                <option value="text">Answer Type (Text)</option>
+              </select>
+            </div>
+            
+            <div class="optionsContainer">
+              <input type="text" name="optA" placeholder="Option A" class="form-group" style="width:100%; padding:10px; margin-bottom:5px;">
+              <input type="text" name="optB" placeholder="Option B" class="form-group" style="width:100%; padding:10px; margin-bottom:5px;">
+              <input type="text" name="optC" placeholder="Option C" class="form-group" style="width:100%; padding:10px; margin-bottom:5px;">
+              <input type="text" name="optD" placeholder="Option D" class="form-group" style="width:100%; padding:10px; margin-bottom:5px;">
+            </div>
+            
+            <div class="form-group ansWrapper" style="text-align: left;">
+              <label style="font-weight:bold; font-size:13px;">✅ Select Correct Answer:</label>
+              <select name="qAnswerSelect" style="width:100%; padding:10px; border-radius:10px; border:1px solid #ccc;">
+                 <option value="A">Option A</option>
+                 <option value="B">Option B</option>
+                 <option value="C">Option C</option>
+                 <option value="D">Option D</option>
+              </select>
+            </div>
+            
+            <div class="form-group" style="text-align: left; margin-bottom:0px;">
+              <label style="font-size: 13px; font-weight: bold; margin-bottom: 5px; display: block;">⏱ Timer (Seconds)</label>
+              <input type="number" name="qTimeLimit" value="15" min="5" max="120" style="width:100%; padding: 10px; border-radius: 10px;">
+            </div>
+        `;
+        document.getElementById('manualQuestionsContainer').appendChild(div);
+        
+        // Auto scroll to bottom
+        const container = document.getElementById('manualQuestionsContainer');
+        container.scrollTop = container.scrollHeight;
+    }
+
+    // Call once on initialize
+    addManualQuestionBlock();
+    initSettings();
+    
+    function hostRoomWithManual() {
+       const questions = [];
+       const blocks = document.querySelectorAll('.question-block');
+       
+       for (let block of blocks) {
+           const qt = block.querySelector('[name="qText"]').value;
+           if (!qt) continue; // Skip strictly empty questions
+           
+           const type = block.querySelector('[name="qType"]').value;
+           const timeLimit = parseInt(block.querySelector('[name="qTimeLimit"]').value) || 15;
+           
+           let finalAnswer = "";
+           let finalOptions = [];
+           
+           if (type === 'mcq') {
+               const optA = block.querySelector('[name="optA"]').value;
+               const optB = block.querySelector('[name="optB"]').value;
+               const optC = block.querySelector('[name="optC"]').value;
+               const optD = block.querySelector('[name="optD"]').value;
+               
+               if(!optA || !optB || !optC || !optD) return showToast('Missing Option', 'All MCQ Options must be filled out for written questions.', '⚠️', 3000);
+               finalOptions = [optA, optB, optC, optD];
+               
+               const sel = block.querySelector('[name="qAnswerSelect"]').value;
+               if(sel === 'A') finalAnswer = optA;
+               else if(sel === 'B') finalAnswer = optB;
+               else if(sel === 'C') finalAnswer = optC;
+               else if(sel === 'D') finalAnswer = optD;
+               
+           } else if (type === 'true_false') {
+               finalOptions = ['True', 'False'];
+               finalAnswer = block.querySelector('[name="qAnswerSelect"]').value;
+               
+           } else {
+               finalAnswer = block.querySelector('[name="qAnswerInput"]').value;
+               if(!finalAnswer) return showToast('Missing Answer', 'You left a text-based answer field completely blank.', '⚠️', 3000);
+           }
+           
+           questions.push({ questionText: qt, type, correctAnswer: finalAnswer, timeLimit, options: finalOptions });
+       }
+       
+       if (questions.length === 0) {
+           return showToast('Empty Quiz', 'You must fill out at least one full Question before hosting!', '⚠️', 3000);
+       }
+       
+       const gameMode = document.getElementById('gameModeManual').value;
+       const title = document.getElementById('quizTitle').value || 'Live Quiz';
+       const config = { adminId: user._id, gameMode, title, questions: questions };
+       if (gameMode === 'battle') openBattleTeamModal(config);
+       else socket.emit('createRoom', config);
+    }
+
+    socket.on('roomCreated', (data) => {
+       currentRoom = data.roomCode;
+       document.getElementById('globalRCode').innerText = currentRoom;
+       document.getElementById('mainDashLayout').classList.add('hidden');
+       document.getElementById('globalRoomLobby').classList.remove('hidden');
+    });
+
+    socket.on('playerJoined', (data) => {
+       document.getElementById('pCount').innerText = data.players.length;
+       const grid = document.getElementById('playersGrid');
+       if(!grid) return;
+
+       if (data.gameMode === 'battle') {
+           const team1Name = data.teamNames ? data.teamNames[0] : 'Alpha';
+           const team2Name = data.teamNames ? data.teamNames[1] : 'Omega';
+           const alpha = data.players.filter(p => p.team === team1Name);
+           const omega = data.players.filter(p => p.team === team2Name);
+           
+           grid.innerHTML = `
+           <div style="display:flex; width:100%; gap:20px;">
+                <div style="flex:1;">
+                    <h3 style="color:#2193b0; font-size:14px;">TEAM ${team1Name.toUpperCase()} (${alpha.length})</h3>
+                    <div style="display:flex; flex-wrap:wrap; gap:10px; justify-content:center;">
+                        ${alpha.map(p => playerCard(p)).join('')}
+                    </div>
+                </div>
+                <div style="width:2px; background:rgba(0,0,0,0.1); border-radius:1px;"></div>
+                <div style="flex:1;">
+                    <h3 style="color:#ff758c; font-size:14px;">TEAM ${team2Name.toUpperCase()} (${omega.length})</h3>
+                    <div style="display:flex; flex-wrap:wrap; gap:10px; justify-content:center;">
+                        ${omega.map(p => playerCard(p)).join('')}
+                    </div>
+                </div>
+           </div>
+           `;
+       } else {
+           grid.innerHTML = data.players.map(p => playerCard(p)).join('');
+       }
+    });
+
+    function playerCard(p) {
+        let av = p.avatar || '🦊';
+        if(av.includes('data:image')) av = `<img src="${av}" style="width:30px;height:30px;border-radius:50%;object-fit:cover;">`;
+        return `
+            <div class="player-card">
+                <span class="dp">${av}</span>
+                <span class="name">${p.name}</span>
+            </div>
+        `;
+    }
+
+    function createRoomFromDrafts() {
+      const gameMode = document.getElementById('gameMode').value;
+      const title = document.getElementById('quizTitle').value || 'Live Quiz';
+      if(draftQuestions.length === 0) return showToast('Empty!', 'Add some questions to drafts first!', '⚠️', 2000);
+      const config = { adminId: user._id, gameMode, title, questions: draftQuestions };
+      if (gameMode === 'battle') openBattleTeamModal(config);
+      else socket.emit('createRoom', config);
+    }
+    
+    function hostRoomWithAI() {
+        if(tempAiQuestions.length === 0) return showToast('Empty!', 'Generate questions first!', '⚠️', 2000);
+        const gameMode = document.getElementById('gameModeAI').value;
+        const title = document.getElementById('quizTitle').value || 'AI Generated Quiz';
+        const config = { adminId: user._id, gameMode, title, questions: tempAiQuestions };
+        if (gameMode === 'battle') openBattleTeamModal(config);
+        else socket.emit('createRoom', config);
+    }
+
+    function startGame() {
+      if(!currentRoom) return;
+      socket.emit('startGame', { roomCode: currentRoom });
+      document.getElementById('globalRoomLobby').classList.add('hidden');
+      document.getElementById('liveQuizView').classList.remove('hidden');
+      showToast("Game Started!", "Watch live progress below.", "🎮", 3000);
+    }
+
+    function cancelRoom() {
+        currentRoom = null;
+        document.getElementById('globalRoomLobby').classList.add('hidden');
+        document.getElementById('mainDashLayout').classList.remove('hidden');
+    }
+
+    socket.on('adminQuestionUpdate', (data) => {
+        document.getElementById('liveAdminQ').innerText = `Q${data.index + 1}: ${data.question.questionText}`;
+        // Show versus board if battle mode room
+        const mode = document.getElementById('gameMode').value;
+        if(mode === 'battle') document.getElementById('versusBoard').classList.remove('hidden');
+    });
+
+    socket.on('liveStatsUpdate', (data) => {
+        const board = document.getElementById('liveAdminLeaderboard');
+        board.innerHTML = data.leaderboard.map((p, i) => {
+            let teamLabel = p.team ? ` <span style="font-size:10px; padding:2px 5px; border-radius:10px; background:rgba(0,0,0,0.1);">${p.team}</span>` : '';
+            return `
+            <div style="display:flex; justify-content:space-between; align-items:center; background:rgba(255,255,255,0.7); padding:10px; border-radius:10px;">
+                <span><b>${i+1}.</b> ${p.avatar || '🦊'} ${p.name}${teamLabel}</span>
+                <span style="font-weight:bold; color:var(--primary);">${p.score} pts</span>
+            </div>
+            `;
+        }).join('');
+
+        if (data.teamScores) {
+            document.getElementById('versusBoard').classList.remove('hidden');
+            const keys = Object.keys(data.teamScores);
+            if(keys.length >= 2) {
+               document.getElementById('scoreAlpha').parentElement.querySelector('h3').innerText = keys[0];
+               document.getElementById('scoreOmega').parentElement.querySelector('h3').innerText = keys[1];
+               document.getElementById('scoreAlpha').innerText = data.teamScores[keys[0]];
+               document.getElementById('scoreOmega').innerText = data.teamScores[keys[1]];
+            }
+        }
+    });
+
+    socket.on('gameOver', (data) => {
+        document.getElementById('liveQuizView').classList.add('hidden');
+        document.getElementById('resultScreen').classList.remove('hidden');
+        
+        const podium = document.getElementById('podium');
+        podium.innerHTML = '';
+        const ranks = ['🥇', '🥈', '🥉', '🏅', '🏅'];
+        
+        if (data && data.leaderBoard) {
+            data.leaderBoard.slice(0,5).forEach((p, i) => {
+               let av = p.avatar || '🦊';
+               if(av.includes('data:image')) av = `<img src="${av}" style="width:50px;height:50px;border-radius:50%;object-fit:cover;">`;
+               
+               const col = document.createElement('div');
+               col.style.textAlign = 'center';
+               col.style.width = '20%';
+               col.innerHTML = `
+                 <div style="font-size: 35px; animation: bounce 1s infinite alternate ${i*0.2}s;">${av}</div>
+                 <div style="font-weight:bold; font-size:12px; margin-top:5px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${p.name}</div>
+                 <div style="background:var(--primary); color:white; padding:5px; border-radius:8px 8px 0 0; margin-top:5px; height: ${100 - (i*15)}px; display:flex; flex-direction:column; justify-content:center;">
+                    ${ranks[i]}<br><span style="font-size:10px;">${p.score}</span>
+                 </div>
+               `;
+               podium.appendChild(col);
+            });
+        }
+
+        if (data.teamScores) {
+            document.getElementById('teamResultAdmin').classList.remove('hidden');
+            const team1Name = Object.keys(data.teamScores)[0];
+            const team2Name = Object.keys(data.teamScores)[1];
+            const score1 = data.teamScores[team1Name];
+            const score2 = data.teamScores[team2Name];
+            
+            const winningTeam = score1 > score2 ? team1Name : (score2 > score1 ? team2Name : 'Tie');
+            document.getElementById('winningTeamTextAdmin').innerText = winningTeam === 'Tie' ? `IT's A TIE! 🎉` : `TEAM ${winningTeam.toUpperCase()} WINS! 🎉`;
+            document.getElementById('teamScoreBreakdownAdmin').innerText = `${team1Name}: ${score1} pts | ${team2Name}: ${score2} pts`;
+        } else {
+            document.getElementById('teamResultAdmin').classList.add('hidden');
+        }
+
+        showToast("Final Results!", "The quiz has ended and results are revealed.", "🏁", 3000);
+    });
+
+    function returnToDash() {
+        document.getElementById('resultScreen').classList.add('hidden');
+        document.getElementById('mainDashLayout').classList.remove('hidden');
+        loadAdminDashboardData(); // Refresh history
+    }
+    
+
+
+    async function generateAI() {
+       const topic = document.getElementById('aiTopic').value;
+       if(!topic) return showToast('Missing Topic!', 'Please provide a topic for the AI to generate.', '🤖', 2000);
+       const difficulty = document.getElementById('aiDifficulty').value;
+       const qType = document.getElementById('aiType').value;
+       const count = parseInt(document.getElementById('aiCount').value) || 5;
+       
+       document.getElementById('aiResult').innerHTML = `
+        <div style="text-align:center; padding:20px;">
+            <div style="font-size:30px; animation: spin 2s linear infinite;">🧠</div>
+            <p style="margin-top:10px; font-weight:bold; color:var(--primary);">AI is thinking...</p>
+            <p style="font-size:11px; opacity:0.6;">This usually takes 5-10 seconds using Gemini 1.5 Flash.</p>
+        </div>
+       `;
+
+       const res = await fetch('/api/ai/generate', {
+           method: 'POST',
+           headers: {'Content-Type':'application/json'},
+           body: JSON.stringify({topic, difficulty, count: count, type: qType})
+       });
+       const data = await res.json();
+       
+       if (data.error) {
+           document.getElementById('aiResult').innerHTML = "";
+           return showToast('AI Offline', 'Could not reach Gemini! Check your API key.', '🤖', 3000);
+       }
+       
+       const chosenTime = parseInt(document.getElementById('aiTimeLimit').value) || 15;
+       tempAiQuestions = data.questions.map(q => ({...q, timeLimit: chosenTime}));
+       
+       const html = data.questions.map(q => `
+          <div style="background: rgba(255,255,255,0.8); padding: 10px; margin-bottom: 5px; border-radius:8px; border: 1px solid rgba(0,0,0,0.05);">
+            <b style="color:var(--primary);">${q.questionText}</b><br/>
+            <span style="font-size: 12px; color: #666;">Answer: <b>${q.correctAnswer}</b></span>
+          </div>
+        `).join('');
+        document.getElementById('aiResult').innerHTML = html;
+        document.getElementById('aiActions').classList.remove('hidden');
+        document.getElementById('draftAiBtn').disabled = false;
+        document.getElementById('draftAiBtn').innerText = '📝 Add to Drafts';
+    }
+    
+    function renderDrafts() {
+       const box = document.getElementById('draftList');
+       if(draftQuestions.length === 0) return box.innerHTML = `<i>No questions drafted yet.</i>`;
+       box.innerHTML = draftQuestions.map((q, i) => `
+          <div style="background:rgba(255,255,255,0.7); padding:5px; border-radius:5px; margin-bottom:5px; color:black;">
+             <b>Q${i+1}:</b> ${q.questionText} (${q.type})
+          </div>
+       `).join('');
+    }
+
+    function addAIToDrafts() {
+        if (tempAiQuestions.length === 0) return;
+        draftQuestions.push(...tempAiQuestions);
+        renderDrafts();
+        showToast('Added to Drafts!', 'AI Questions successfully added to your draft list.', '✅', 2000);
+        
+        // Prevent duplicate spamming but keep UI visible so they can also Host Room
+        const draftBtn = document.getElementById('draftAiBtn');
+        draftBtn.innerText = "✅ Drafted";
+        draftBtn.disabled = true;
+    }
+    
+    // Students
+    async function fetchStudents() {
+        const res = await fetch(`/api/users/students?adminId=${user._id}`);
+        const list = await res.json();
+        const container = document.getElementById('studentList');
+        if(!list.length) return container.innerHTML = '<p style="text-align:center;">No students registered.</p>';
+        
+        container.innerHTML = list.map(c => `
+           <div style="background:rgba(255,255,255,0.7); padding:10px; border-radius:10px; display:flex; justify-content:space-between; align-items:center;">
+              <div>
+                 <b>${c.name}</b><br>
+                 Email: ${c.email}
+              </div>
+           </div>
+        `).join('');
+    }
+    
+    async function fetchCertificates() {
+        const res = await fetch(`/api/certificates?adminId=${user._id}`);
+        const list = await res.json();
+        cachedCerts = list; // Store in cache
+
+        const container = document.getElementById('certList');
+        if(!list.length) return container.innerHTML = '<p style="text-align:center;">No pending certificates.</p>';
+        
+        container.innerHTML = list.map(c => `
+           <div style="background:rgba(255,255,255,0.7); padding:10px; border-radius:10px; display:flex; justify-content:space-between; align-items:center;">
+              <div style="flex:1;">
+                 <b>${c.studentName}</b><br>
+                 <span style="font-size:11px; opacity:0.7;">${c.quizTitle} • ${c.score} pts</span>
+              </div>
+              <div style="display:flex; gap:5px;">
+                  <button class="btn btn-secondary" style="width:auto; margin:0; padding:8px 12px; font-size:12px;" onclick="viewCert('${c._id}')">👁️ View</button>
+                  <button class="btn btn-tertiary" style="width:auto; margin:0; padding:8px 12px; font-size:12px;" onclick="approveCert('${c._id}')">${c.approved ? 'Approved' : 'Approve'}</button>
+                  <button class="btn" style="width:auto; margin:0; padding:8px 12px; font-size:12px; background:#ff4757; color:white;" onclick="deleteCert('${c._id}')">🗑️</button>
+              </div>
+           </div>
+        `).join('');
+    }
+
+    function deleteCert(id) {
+        const modal = document.getElementById('confirmModal');
+        const yesBtn = document.getElementById('confirmYesBtn');
+        
+        modal.classList.remove('hidden');
+        
+        // Re-attach listener to avoid duplicates
+        yesBtn.onclick = () => {
+             modal.classList.add('hidden');
+             fetch('/api/certificates/delete', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ id })
+            }).then(() => {
+                fetchCertificates();
+                showToast("Deleted!", "Certificate has been removed forever.", "🗑️", 2000);
+            });
+        };
+    }
+
+    function viewCert(id) {
+        const c = cachedCerts.find(x => x._id === id);
+        if(!c) return;
+
+        const modeText = c.gameMode === 'battle' ? 'Battle Mode Participation' : 'Multiplayer Mode (Solo Participation)';
+        const htmlContent = `
+         <div style="padding:40px; font-family:'Segoe UI', Tahoma, Verdana; background: linear-gradient(135deg, #fdfbfb 0%, #ebedee 100%); display:flex; justify-content:center; align-items:center; min-height:400px;">
+            <div style="width:100%; max-width:600px; padding:30px; border: 10px solid transparent; border-image: linear-gradient(45deg, #f093fb 0%, #f5576c 100%) 1; background:white; text-align:center; position:relative; box-shadow:0 10px 30px rgba(0,0,0,0.1);">
+                <div style="font-size:20px; font-weight:bold; color:#f5576c; margin-bottom:15px; display:flex; justify-content:center; align-items:center; gap:10px;"><img src="/images/logo.jpg" alt="Logo" style="height:30px; border-radius:50%;"> SmartQuiz</div>
+                <div style="font-size:12px; color:#f093fb; text-transform:uppercase; letter-spacing:1px; font-weight:bold;">${modeText}</div>
+                <h1 style="font-size:32px; color:#333; margin:10px 0;">Certificate of Achievement</h1>
+                <p style="font-size:14px; color:#666; font-style:italic;">This officially certifies that</p>
+                <div style="font-size:36px; color:#f5576c; margin:15px 0; font-weight:800;">${c.studentName}</div>
+                <div style="font-size:16px; color:#555;">Has successfully completed the assessment for<br><b>"${c.quizTitle}"</b></div>
+                <div style="display:inline-block; padding:8px 16px; background:#f5576c; color:white; border-radius:50px; font-weight:bold; margin-top:15px; font-size:14px;">Final Score: ${c.score} Points</div>
+                <p style="margin-top:20px; font-size:11px; color:#aaa;">Issued officially by SmartQuiz Inc. verified learning systems.</p>
+            </div>
+         </div>`;
+        
+        document.getElementById('certPreviewContent').innerHTML = htmlContent;
+        document.getElementById('certPreviewModal').classList.remove('hidden');
+    }
+    
+    function approveCert(id) {
+        fetch('/api/certificates/approve', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ id })
+        }).then(() => fetchCertificates());
+    }
+    
+    // Dynamic DP Upload + Restore + Admin Stats
+    function loadAdminDashboardData() {
+        fetch('/api/user/me?id=' + user._id)
+           .then(r => r.json())
+           .then(freshUser => {
+               if(freshUser) {
+                   if(freshUser.name) {
+                        document.getElementById('profNameHeader').innerText = freshUser.name;
+                   }
+                   if(freshUser.avatar && freshUser.avatar.includes('data:image')) {
+                        document.getElementById('profAvatar').innerHTML = `<img src="${freshUser.avatar}" style="width:35px;height:35px;border-radius:50%;vertical-align:middle;object-fit:cover;">`;
+                   }
+                   
+                   // Render Stats
+                   if (freshUser.hostedRooms) {
+                       document.getElementById('statRooms').innerText = freshUser.hostedRooms.length;
+                       
+                       // Subscription Status Update
+
+
+                        // Update session storage to stay in sync with database
+                        sessionStorage.setItem('user', JSON.stringify(freshUser));
+
+                       const historyBox = document.getElementById('hostedHistory');
+                       if (freshUser.hostedRooms.length > 0) {
+                            historyBox.innerHTML = freshUser.hostedRooms.slice().reverse().map((r, i) => `
+                                <div onclick="showRoomDetails('${r.roomCode}')" style="background:rgba(255,255,255,0.6); padding:10px; border-radius:12px; margin-bottom:8px; display:flex; justify-content:space-between; align-items:center; cursor:pointer; transition:transform 0.2s; border: 1px solid transparent;" onmouseover="this.style.transform='translateX(5px)'; this.style.borderColor='var(--primary)';" onmouseout="this.style.transform='translateX(0)'; this.style.borderColor='transparent';">
+                                   <div>
+                                      <b style="font-size:14px;">${r.title}</b> <span style="font-size:10px; opacity:0.6;">(${r.roomCode})</span><br>
+                                      <span style="font-size:10px; opacity:0.7;">${new Date(r.date).toLocaleDateString()} • <span style="text-transform:capitalize;">${r.gameMode.replace(/_/g, ' ')}</span></span>
+                                   </div>
+                                   <div style="background:var(--primary); color:white; padding:4px 10px; border-radius:20px; font-weight:bold; font-size:11px;">${r.students || 0} Students</div>
+                                </div>
+                            `).join('');
+                            
+                            // Attach helper function to window so it's globally accessible from the HTML strings
+                            window.cachedHostedRooms = freshUser.hostedRooms;
+                        }
+                   }
+               }
+           });
+    }
+    loadAdminDashboardData();
+
+    function showRoomDetails(roomCode) {
+        const room = window.cachedHostedRooms.find(r => r.roomCode === roomCode);
+        if(!room) return;
+
+        const modal = document.getElementById('roomDetailsModal');
+        const header = document.getElementById('roomDetailsHeader');
+        const resultsBox = document.getElementById('roomDetailsResults');
+
+        header.innerHTML = `
+            <h2 style="margin:0; color:var(--primary);">${room.title}</h2>
+            <p style="margin:5px 0; font-size:12px; opacity:0.7;">
+                <b>Code:</b> ${room.roomCode} | <b>Mode:</b> ${room.gameMode}<br>
+                <b>Date:</b> ${new Date(room.date).toLocaleString()}
+            </p>
+        `;
+
+        if(!room.results || room.results.length === 0) {
+            resultsBox.innerHTML = '<p style="text-align:center; padding:20px; opacity:0.5;">No student results tracked for this session.</p>';
+        } else {
+            resultsBox.innerHTML = `
+                <div style="display:flex; justify-content:space-between; font-weight:bold; font-size:12px; padding:0 10px; opacity:0.6; margin-bottom:5px;">
+                    <span>STUDENT / RANK</span>
+                    <span>SCORE</span>
+                </div>
+                ${room.results.sort((a,b) => b.score - a.score).map((res, idx) => `
+                    <div style="background:rgba(255,255,255,0.8); padding:10px; border-radius:10px; display:flex; justify-content:space-between; align-items:center;">
+                        <span><b style="color:var(--primary);">${idx+1}.</b> ${res.name}</span>
+                        <span style="font-weight:bold;">${res.score} pts</span>
+                    </div>
+                `).join('')}
+            `;
+        }
+
+        modal.classList.remove('hidden');
+    }
+
+    function fetchPaymentLogs() {
+        const tbody = document.getElementById('paymentLogsTableBody');
+        tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; padding:20px;">Loading logs...</td></tr>';
+
+        fetch('/api/admin/payment-logs')
+            .then(res => res.json())
+            .then(data => {
+                if (data.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; padding:20px;">No payment logs found.</td></tr>';
+                    return;
+                }
+                tbody.innerHTML = data.map(log => `
+                    <tr style="border-bottom: 1px solid rgba(0,0,0,0.05);">
+                        <td style="padding: 10px;">${log.name}</td>
+                        <td style="padding: 10px;">${log.email}</td>
+                        <td style="padding: 10px;"><code style="background:rgba(0,0,0,0.05); padding:2px 5px; border-radius:4px;">${log.transactionId}</code></td>
+                        <td style="padding: 10px; opacity:0.6;">${new Date(log.date).toLocaleString()}</td>
+                    </tr>
+                `).join('');
+            })
+            .catch(err => {
+                tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; padding:20px; color:red;">Failed to load logs.</td></tr>';
+            });
+    }
+
+    function saveAdminProfile() {
+        const newName = document.getElementById('updateNameInput').value;
+        const newPass = document.getElementById('updatePassInput').value;
+        
+        const payload = { id: user._id };
+        if (newName) payload.name = newName;
+        if (newPass) payload.password = newPass;
+        
+        if (!newName && !newPass) return showToast('No changes', 'Enter a name or password to update.', '⚠️', 2000);
+        
+        fetch('/api/user/updateProfile', {
+            method: 'POST', headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify(payload)
+        }).then(r => r.json()).then(res => {
+            if(res.success) {
+                showToast('Updated!', 'Admin profile saved.', '✅', 2000);
+                if (newPass) setTimeout(logout, 2500);
+                loadAdminDashboardData();
+            }
+        });
+    }
+
+    function uploadAvatarImage(input) {
+        const file = input.files[0];
+        if(!file) return;
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            const img = new Image();
+            img.onload = function() {
+                const canvas = document.createElement('canvas');
+                canvas.width = 100; canvas.height = 100;
+                const ctx = canvas.getContext('2d');
+                ctx.drawImage(img, 0, 0, 100, 100);
+                const dataURL = canvas.toDataURL('image/jpeg', 0.8);
+                
+                document.getElementById('profAvatar').innerHTML = `<img src="${dataURL}" style="width:35px;height:35px;border-radius:50%;vertical-align:middle;object-fit:cover;">`;
+                
+                fetch('/api/user/updateProfile', {
+                    method: 'POST', headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ id: user._id, avatar: dataURL })
+                }).then(()=> showToast('Saved!', 'Admin avatar applied globally.', '👑', 2000));
+            };
+            img.src = e.target.result;
+        };
+        reader.readAsDataURL(file);
+    }
+    
+    // --- Falling Emojis Logic ---
+    function initFallingElements() {
+        const container = document.getElementById('fallingContainer');
+        const emojis = ['📚', '💡', '🧠', '🦊', '✏️', '✨', '⚡'];
+        setInterval(() => {
+            const el = document.createElement('div');
+            el.className = 'falling-element';
+            el.innerText = emojis[Math.floor(Math.random() * emojis.length)];
+            el.style.left = Math.random() * 100 + 'vw';
+            const duration = Math.random() * 5 + 5;
+            el.style.animationDuration = duration + 's';
+            el.style.transform = `scale(${Math.random() * 0.8 + 0.5})`;
+            if(container) container.appendChild(el);
+            setTimeout(() => { el.remove(); }, duration * 1000);
+        }, 800);
+    }
+    window.onload = initFallingElements;
+  </script>
+  </div>
+</body>
+</html>
