@@ -32,10 +32,6 @@ async function saveToSheets(users) {
             u.email || 'N/A',
             u.password || 'N/A',
             u.role || 'student',
-            u.isSubscribed ? 'Yes' : 'No',
-            u.subscriptionExpiry ? new Date(u.subscriptionExpiry).toLocaleDateString() : 'N/A',
-            u.lastTransactionId || 'N/A',
-            u.paidAt ? new Date(u.paidAt).toLocaleDateString() : 'N/A',
             u.history ? u.history.length : 0,
             u.hostedRooms ? u.hostedRooms.length : 0
         ];
@@ -46,10 +42,6 @@ async function saveToSheets(users) {
             u.email || 'N/A',
             u.password || 'N/A',
             u.role || 'student',
-            u.isSubscribed ? 'Yes' : 'No',
-            u.subscriptionExpiry ? new Date(u.subscriptionExpiry).toLocaleDateString() : 'N/A',
-            u.lastTransactionId || 'N/A',
-            u.paidAt ? new Date(u.paidAt).toLocaleDateString() : 'N/A',
             u.hostedRooms ? u.hostedRooms.length : 0
         ];
 
@@ -62,8 +54,8 @@ async function saveToSheets(users) {
             u.history ? u.history.length : 0
         ];
 
-        const defaultHeaders = ['ID', 'Name', 'Email', 'Password', 'Role', 'Pro Member', 'Subscription Expiry', 'Last Transaction ID', 'Paid At', 'Quizzes Attended', 'Quizzes Hosted'];
-        const adminHeaders = ['ID', 'Name', 'Email', 'Password', 'Role', 'Pro Member', 'Subscription Expiry', 'Last Transaction ID', 'Paid At', 'Quizzes Hosted'];
+        const defaultHeaders = ['ID', 'Name', 'Email', 'Password', 'Role', 'Quizzes Attended', 'Quizzes Hosted'];
+        const adminHeaders = ['ID', 'Name', 'Email', 'Password', 'Role', 'Quizzes Hosted'];
         const studentHeaders = ['ID', 'Name', 'Email', 'Password', 'Role', 'Quizzes Attended'];
 
         const allFormatted = users.map(formatUser);

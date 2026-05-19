@@ -16,10 +16,6 @@ function saveToExcel(users) {
             Email: u.email || 'N/A',
             Password: u.password || 'N/A',
             Role: u.role || 'student',
-            'Pro Member': u.isSubscribed ? 'Yes' : 'No',
-            'Subscription Expiry': u.subscriptionExpiry ? new Date(u.subscriptionExpiry).toLocaleDateString() : 'N/A',
-            'Last Transaction ID': u.lastTransactionId || 'N/A',
-            'Paid At': u.paidAt ? new Date(u.paidAt).toLocaleDateString() : 'N/A',
             'Quizzes Attended': u.history ? u.history.length : 0,
             'Quizzes Hosted': u.hostedRooms ? u.hostedRooms.length : 0
         });
@@ -30,10 +26,6 @@ function saveToExcel(users) {
             Email: u.email || 'N/A',
             Password: u.password || 'N/A',
             Role: u.role || 'student',
-            'Pro Member': u.isSubscribed ? 'Yes' : 'No',
-            'Subscription Expiry': u.subscriptionExpiry ? new Date(u.subscriptionExpiry).toLocaleDateString() : 'N/A',
-            'Last Transaction ID': u.lastTransactionId || 'N/A',
-            'Paid At': u.paidAt ? new Date(u.paidAt).toLocaleDateString() : 'N/A',
             'Quizzes Hosted': u.hostedRooms ? u.hostedRooms.length : 0
         });
 
