@@ -1,0 +1,156 @@
+[
+  {
+    "_id": "6a09fd83c9be5658486507b4",
+    "name": "sahana",
+    "email": "sahanaprakash750@gmail.com",
+    "password": "sahana",
+    "role": "admin",
+    "avatar": "🦊",
+    "score": 0,
+    "strikeRate": 0,
+    "quizzesAttended": 0,
+    "isSubscribed": true,
+    "hostedRooms": [
+      {
+        "roomCode": "GR1ZT7",
+        "title": "AI Generated Quiz",
+        "gameMode": "multiplayer_score",
+        "students": 1,
+        "date": "2026-05-19T14:23:02.596Z",
+        "results": [
+          {
+            "name": "chandana",
+            "score": 30,
+            "_id": "6a0c72d23e195fcf9bda1229"
+          }
+        ],
+        "_id": "6a0c72463e195fcf9bda1225"
+      },
+      {
+        "roomCode": "PB3H94",
+        "title": "AI Generated Quiz",
+        "gameMode": "multiplayer_score",
+        "students": 1,
+        "date": "2026-05-19T14:58:27.906Z",
+        "results": [
+          {
+            "name": "keerthi",
+            "score": 10,
+            "_id": "6a0c7ace0e29711968f74f02"
+          }
+        ],
+        "_id": "6a0c7a930e29711968f74efc"
+      },
+      {
+        "roomCode": "PG51KM",
+        "title": "AI Generated Quiz",
+        "gameMode": "multiplayer_score",
+        "students": 1,
+        "date": "2026-05-19T15:07:49.491Z",
+        "results": [
+          {
+            "name": "keerthi",
+            "score": 0,
+            "_id": "6a0c7cee18da016d6c50fb5b"
+          }
+        ],
+        "_id": "6a0c7cc518da016d6c50fb53"
+      },
+      {
+        "roomCode": "8O8K1K",
+        "title": "AI Generated Quiz",
+        "gameMode": "multiplayer_score",
+        "students": 1,
+        "date": "2026-05-19T15:23:27.306Z",
+        "results": [
+          {
+            "name": "keerthi",
+            "score": 0,
+            "_id": "6a0c8098f7644cc17a9904d7"
+          }
+        ],
+        "_id": "6a0c806ff7644cc17a9904ce"
+      },
+      {
+        "roomCode": "OLP5SZ",
+        "title": "AI Generated Quiz",
+        "gameMode": "multiplayer_score",
+        "students": 1,
+        "date": "2026-05-19T15:30:13.255Z",
+        "results": [
+          {
+            "name": "keerthi",
+            "score": 10,
+            "_id": "6a0c8257d600624e49c1425d"
+          }
+        ],
+        "_id": "6a0c8205d600624e49c1424f"
+      },
+      {
+        "roomCode": "TNQ6SO",
+        "title": "AI Generated Quiz",
+        "gameMode": "multiplayer_score",
+        "students": 1,
+        "date": "2026-05-19T15:36:08.144Z",
+        "results": [
+          {
+            "name": "keerthi",
+            "score": 0,
+            "_id": "6a0c839ff3274c110eb05687"
+          }
+        ],
+        "_id": "6a0c8368f3274c110eb05676"
+      },
+      {
+        "roomCode": "AB05MQ",
+        "title": "AI Generated Quiz",
+        "gameMode": "multiplayer_score",
+        "students": 1,
+        "date": "2026-05-19T15:42:44.888Z",
+        "results": [
+          {
+            "name": "keerthi",
+            "score": 10,
+            "_id": "6a0c8519dad59765e74993fd"
+          }
+        ],
+        "_id": "6a0c84f4dad59765e74993ee"
+      }
+    ],
+    "history": [],
+    "__v": 14,
+    "lastTransactionId": "12345678",
+    "paidAt": "2026-05-18T12:06:07.380Z",
+    "subscriptionExpiry": "2026-06-18T12:06:07.183Z"
+  },
+  {
+    "name": "harshitha",
+    "email": "shanaprakash750@gmail.com",
+    "password": "harshitha",
+    "role": "student",
+    "avatar": "🦊",
+    "score": 0,
+    "strikeRate": 0,
+    "quizzesAttended": 0,
+    "isSubscribed": false,
+    "_id": "6a0c87f7004ee9198bae17ca",
+    "hostedRooms": [],
+    "history": [],
+    "__v": 0
+  },
+  {
+    "name": "teju",
+    "email": "shanaprakash77750@gmail.com",
+    "password": "sahana",
+    "role": "admin",
+    "avatar": "🦊",
+    "score": 0,
+    "strikeRate": 0,
+    "quizzesAttended": 0,
+    "isSubscribed": false,
+    "_id": "6a0c9227004ee9198bae17cb",
+    "hostedRooms": [],
+    "history": [],
+    "__v": 0
+  }
+]
